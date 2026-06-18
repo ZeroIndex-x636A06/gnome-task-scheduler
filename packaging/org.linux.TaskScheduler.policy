@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!--
+  Polkit policy for the Task Scheduler privileged daemon. Each action
+  corresponds to a single DBus method on `org.linux.TaskScheduler`.
+
+  Defaults: read is allowed for any active session; mutating actions prompt
+  for an administrator password and cache the credential for the rest of
+  the session (auth_admin_keep).
+-->
+<policyconfig>
+
+  <vendor>Task Scheduler</vendor>
+  <vendor_url>https://example.invalid/task-scheduler</vendor_url>
+
+  <action id="org.linux.TaskScheduler.list-tasks">
+    <description>List scheduled tasks</description>
+    <message>Authentication is required to list scheduled tasks.</message>
+    <defaults>
+      <allow_any>auth_self</allow_any>
+      <allow_inactive>auth_self</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.linux.TaskScheduler.create-task">
+    <description>Create or replace a scheduled task</description>
+    <message>Authentication is required to create or modify a scheduled task.</message>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.linux.TaskScheduler.delete-task">
+    <description>Delete a scheduled task</description>
+    <message>Authentication is required to delete a scheduled task.</message>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.linux.TaskScheduler.toggle-task">
+    <description>Enable or disable a scheduled task</description>
+    <message>Authentication is required to change a scheduled task.</message>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.linux.TaskScheduler.revert-task">
+    <description>Revert a scheduled task to an earlier snapshot</description>
+    <message>Authentication is required to revert a scheduled task.</message>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+</policyconfig>

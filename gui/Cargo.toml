@@ -1,0 +1,23 @@
+[package]
+name = "task-scheduler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Native Linux Task Scheduler (Windows Task Scheduler-like) for GNOME"
+
+[[bin]]
+name = "task-scheduler"
+path = "src/main.rs"
+
+[dependencies]
+task-scheduler-core = { workspace = true }
+gtk4 = { version = "0.9", features = ["v4_12"] }
+libadwaita = { version = "0.7", features = ["v1_5"] }
+glib = "0.20"
+gio = "0.20"
+dirs = "5"
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zbus = { workspace = true }
+libc = "0.2"

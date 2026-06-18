@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+  remove|deconfigure)
+    systemctl disable --now task-scheduler-daemon.service 2>/dev/null || true
+    ;;
+esac
+
+#DEBHELPER#
+exit 0

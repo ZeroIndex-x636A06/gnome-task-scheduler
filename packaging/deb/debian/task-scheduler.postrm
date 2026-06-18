@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+  remove|purge)
+    systemctl daemon-reload || true
+    systemctl reload dbus 2>/dev/null || true
+    update-desktop-database /usr/share/applications 2>/dev/null || true
+    gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+    ;;
+esac
+
+#DEBHELPER#
+exit 0

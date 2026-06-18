@@ -1,0 +1,15 @@
+[Unit]
+Description=Task Scheduler privileged daemon
+Documentation=https://github.com/ZeroIndex-x636A06/gnome-task-manager
+After=dbus.service
+Requires=dbus.service
+
+[Service]
+Type=dbus
+BusName=org.linux.TaskScheduler
+ExecStart=/usr/local/bin/task-scheduler-daemon
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

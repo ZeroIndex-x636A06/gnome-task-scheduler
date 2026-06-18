@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Task Scheduler
+GenericName=Task Scheduler
+Comment=Schedule and manage system and user tasks
+Exec=task-scheduler
+Icon=task-scheduler
+Terminal=false
+Categories=System;Settings;Utility;
+Keywords=cron;systemd;scheduler;task;timer;
+StartupNotify=true

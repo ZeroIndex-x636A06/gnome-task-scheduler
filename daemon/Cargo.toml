@@ -1,0 +1,22 @@
+[package]
+name = "task-scheduler-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Privileged DBus daemon for Task Scheduler — manages system-wide systemd units"
+
+[[bin]]
+name = "task-scheduler-daemon"
+path = "src/main.rs"
+
+[dependencies]
+task-scheduler-core = { workspace = true }
+zbus = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+libc = "0.2"

@@ -1,0 +1,30 @@
+Source: task-scheduler
+Section: admin
+Priority: optional
+Maintainer: Caleb Jarrell <calebjarrell2006@gmail.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ cargo,
+ rustc (>= 1.75),
+ pkg-config,
+ libgtk-4-dev,
+ libadwaita-1-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/ZeroIndex-x636A06/gnome-task-manager
+Rules-Requires-Root: binary-targets
+
+Package: task-scheduler
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ libgtk-4-1,
+ libadwaita-1-0,
+ dbus,
+ policykit-1,
+ systemd
+Recommends: cron, breeze-icon-theme, xfconf
+Description: GTK4/libadwaita scheduler for system and user tasks
+ Task Scheduler is a desktop frontend for scheduling cron and systemd
+ timer tasks. It ships a privileged DBus daemon that performs the
+ system-scope work, gated behind polkit, and a GTK4/libadwaita GUI.

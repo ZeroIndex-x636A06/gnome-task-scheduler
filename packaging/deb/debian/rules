@@ -1,0 +1,45 @@
+#!/usr/bin/make -f
+# Build via cargo directly so we don't depend on dh-cargo's vendoring.
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export CARGO_HOME = $(CURDIR)/debian/cargo-home
+
+# Project root inside the source tarball.
+SRC := desktop/task-scheduler
+PKGDIR := debian/task-scheduler
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	cd $(SRC) && cargo build --release --workspace --locked
+
+override_dh_auto_test:
+	# Skip tests; many require a live system bus / udev.
+
+override_dh_auto_install:
+	install -Dm755 $(SRC)/target/release/task-scheduler        $(PKGDIR)/usr/bin/task-scheduler
+	install -Dm755 $(SRC)/target/release/task-scheduler-daemon $(PKGDIR)/usr/bin/task-scheduler-daemon
+	install -Dm644 $(SRC)/packaging/org.linux.TaskScheduler.conf \
+	  $(PKGDIR)/usr/share/dbus-1/system.d/org.linux.TaskScheduler.conf
+	install -Dm644 $(SRC)/packaging/org.linux.TaskScheduler.policy \
+	  $(PKGDIR)/usr/share/polkit-1/actions/org.linux.TaskScheduler.policy
+	install -d $(PKGDIR)/usr/lib/systemd/system
+	sed 's|/usr/local/bin/|/usr/bin/|g' \
+	  $(SRC)/packaging/task-scheduler-daemon.service \
+	  > $(PKGDIR)/usr/lib/systemd/system/task-scheduler-daemon.service
+	chmod 644 $(PKGDIR)/usr/lib/systemd/system/task-scheduler-daemon.service
+	install -Dm644 $(SRC)/packaging/task-scheduler.desktop \
+	  $(PKGDIR)/usr/share/applications/task-scheduler.desktop
+	install -Dm644 $(SRC)/packaging/task-scheduler.png \
+	  $(PKGDIR)/usr/share/icons/hicolor/512x512/apps/task-scheduler.png
+	install -Dm644 $(SRC)/packaging/task-scheduler.svg \
+	  $(PKGDIR)/usr/share/icons/hicolor/scalable/apps/task-scheduler.svg
+	install -d -m 0755 $(PKGDIR)/var/lib/task-scheduler/snapshots
+
+override_dh_installsystemd:
+	dh_installsystemd --name=task-scheduler-daemon --no-stop-on-upgrade
+
+override_dh_auto_clean:
+	rm -rf $(SRC)/target $(CARGO_HOME)
+	dh_auto_clean

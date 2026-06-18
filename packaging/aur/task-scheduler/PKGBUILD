@@ -1,0 +1,59 @@
+# Maintainer: Caleb Jarrell <calebjarrell2006@gmail.com>
+pkgname=task-scheduler
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="GTK4/libadwaita scheduler for system and user cron / systemd tasks"
+arch=('x86_64' 'aarch64')
+url="https://github.com/ZeroIndex-x636A06/gnome-task-manager"
+license=('MIT')
+depends=('gtk4' 'libadwaita' 'dbus' 'polkit' 'systemd')
+makedepends=('rust' 'cargo' 'pkgconf')
+optdepends=(
+  'cronie: classic cron backend for user-scope tasks'
+  'breeze-icon-theme: better icon match on KDE Plasma'
+  'xfconf: XFCE theme detection for dark-mode sync'
+)
+install="${pkgname}.install"
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "${pkgname}-${pkgver}"
+  export CARGO_HOME="${srcdir}/.cargo"
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "${pkgname}-${pkgver}"
+  export CARGO_HOME="${srcdir}/.cargo"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --release --workspace --frozen
+}
+
+package() {
+  cd "${pkgname}-${pkgver}"
+
+  install -Dm755 target/release/task-scheduler        "${pkgdir}/usr/bin/task-scheduler"
+  install -Dm755 target/release/task-scheduler-daemon "${pkgdir}/usr/bin/task-scheduler-daemon"
+
+  install -Dm644 packaging/org.linux.TaskScheduler.conf \
+    "${pkgdir}/usr/share/dbus-1/system.d/org.linux.TaskScheduler.conf"
+
+  install -Dm644 packaging/org.linux.TaskScheduler.policy \
+    "${pkgdir}/usr/share/polkit-1/actions/org.linux.TaskScheduler.policy"
+
+  install -d "${pkgdir}/usr/lib/systemd/system"
+  sed 's|/usr/local/bin/|/usr/bin/|g' packaging/task-scheduler-daemon.service \
+    > "${pkgdir}/usr/lib/systemd/system/task-scheduler-daemon.service"
+  chmod 644 "${pkgdir}/usr/lib/systemd/system/task-scheduler-daemon.service"
+
+  install -Dm644 packaging/task-scheduler.desktop \
+    "${pkgdir}/usr/share/applications/task-scheduler.desktop"
+  install -Dm644 packaging/task-scheduler.png \
+    "${pkgdir}/usr/share/icons/hicolor/512x512/apps/task-scheduler.png"
+
+  install -d -m 0755 "${pkgdir}/var/lib/task-scheduler/snapshots"
+
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

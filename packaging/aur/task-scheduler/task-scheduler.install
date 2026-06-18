@@ -1,0 +1,20 @@
+post_install() {
+  systemctl daemon-reload || true
+  systemctl reload dbus 2>/dev/null || systemctl restart dbus || true
+  systemctl enable --now task-scheduler-daemon.service || true
+}
+
+post_upgrade() {
+  systemctl daemon-reload || true
+  systemctl reload dbus 2>/dev/null || true
+  systemctl try-restart task-scheduler-daemon.service || true
+}
+
+pre_remove() {
+  systemctl disable --now task-scheduler-daemon.service 2>/dev/null || true
+}
+
+post_remove() {
+  systemctl daemon-reload || true
+  systemctl reload dbus 2>/dev/null || true
+}
