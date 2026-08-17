@@ -43,7 +43,14 @@ install_build_deps() {
     apt)
       apt-get update -qq
       local pkgs=(pkg-config libgtk-4-dev libadwaita-1-dev libglib2.0-dev
-                  dbus policykit-1 systemd)
+                  dbus systemd)
+      # policykit-1 was split up and dropped in Debian 13 / Ubuntu 24.04.
+      # Pick whichever name this release actually ships rather than pinning one.
+      if apt-cache show polkitd >/dev/null 2>&1; then
+        pkgs+=(polkitd)
+      else
+        pkgs+=(policykit-1)
+      fi
       $need_rust && pkgs+=(cargo rustc)
       apt-get install -y "${pkgs[@]}"
       ;;
@@ -56,7 +63,20 @@ install_build_deps() {
     pacman)
       local pkgs=(pkgconf gtk4 libadwaita dbus polkit systemd)
       $need_rust && pkgs+=(rust)
-      pacman -Sy --needed --noconfirm "${pkgs[@]}"
+      # Only touch pacman if something is genuinely missing. A bare `-Sy`
+      # leaves the system in a partial-upgrade state, which is itself the
+      # usual cause of mismatched/"outdated" library errors later on.
+      local missing=()
+      local p
+      for p in "${pkgs[@]}"; do
+        pacman -Qq "$p" &>/dev/null || missing+=("$p")
+      done
+      if (( ${#missing[@]} )); then
+        echo "    installing: ${missing[*]}"
+        pacman -Syu --needed --noconfirm "${missing[@]}"
+      else
+        echo "    all dependencies already present — nothing to do"
+      fi
       ;;
     *)
       echo "  warn: Unrecognised package manager. Install manually:" >&2
@@ -123,7 +143,9 @@ update-desktop-database /usr/share/applications 2>/dev/null || true
 gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
 
 echo "==> Reloading dbus + systemd"
-systemctl reload dbus 2>/dev/null || systemctl restart dbus || true
+# Reload only — never `restart dbus` on a live system. Restarting the system
+# bus tears down every client attached to it and can log the user out mid-install.
+systemctl reload dbus 2>/dev/null || true
 systemctl daemon-reload
 systemctl enable --now task-scheduler-daemon.service
 

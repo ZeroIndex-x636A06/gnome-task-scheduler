@@ -1,13 +1,14 @@
 Name:           task-scheduler
-Version:        0.2.0
+# Keep in sync with [workspace.package] version in Cargo.toml.
+Version:        0.2.2
 Release:        1%{?dist}
 Summary:        GTK4/libadwaita scheduler for system and user tasks
 
 License:        MIT
-URL:            https://github.com/ZeroIndex-x636A06/gnome-task-manager
+URL:            https://github.com/ZeroIndex-x636A06/gnome-task-scheduler
 Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz#/%{name}-%{version}.tar.gz
 
-BuildRequires:  rust >= 1.75
+BuildRequires:  rust
 BuildRequires:  cargo
 BuildRequires:  pkgconf-pkg-config
 BuildRequires:  gtk4-devel
@@ -51,8 +52,8 @@ sed 's|/usr/local/bin/|%{_bindir}/|g' packaging/task-scheduler-daemon.service \
   > %{buildroot}%{_unitdir}/task-scheduler-daemon.service
 chmod 644 %{buildroot}%{_unitdir}/task-scheduler-daemon.service
 
-install -Dm644 packaging/task-scheduler.desktop \
-  %{buildroot}%{_datadir}/applications/task-scheduler.desktop
+install -Dm644 packaging/org.linux.TaskScheduler.desktop \
+  %{buildroot}%{_datadir}/applications/org.linux.TaskScheduler.desktop
 install -Dm644 packaging/task-scheduler.png \
   %{buildroot}%{_datadir}/icons/hicolor/512x512/apps/task-scheduler.png
 
@@ -60,7 +61,7 @@ install -d -m 0755 %{buildroot}%{_sharedstatedir}/task-scheduler/snapshots
 
 %post
 %systemd_post task-scheduler-daemon.service
-systemctl reload dbus 2>/dev/null || systemctl restart dbus || true
+systemctl reload dbus 2>/dev/null || true
 systemctl enable --now task-scheduler-daemon.service || true
 update-desktop-database %{_datadir}/applications 2>/dev/null || true
 gtk-update-icon-cache -f %{_datadir}/icons/hicolor 2>/dev/null || true
@@ -81,11 +82,16 @@ gtk-update-icon-cache -f %{_datadir}/icons/hicolor 2>/dev/null || true
 %{_datadir}/dbus-1/system.d/org.linux.TaskScheduler.conf
 %{_datadir}/polkit-1/actions/org.linux.TaskScheduler.policy
 %{_unitdir}/task-scheduler-daemon.service
-%{_datadir}/applications/task-scheduler.desktop
+%{_datadir}/applications/org.linux.TaskScheduler.desktop
 %{_datadir}/icons/hicolor/512x512/apps/task-scheduler.png
 %dir %{_sharedstatedir}/task-scheduler
 %dir %{_sharedstatedir}/task-scheduler/snapshots
 
 %changelog
-* Wed Jun 18 2026 Caleb Jarrell <calebjarrell2006@gmail.com> - 0.2.0-1
+* Mon Aug 17 2026 Caleb Jarrell <calebjarrell2006@gmail.com> - 0.2.2-1
+- Fix packaging: correct repository URL, desktop entry filename, and source path.
+- Replace obsolete policykit-1 dependency with polkitd.
+- Update Rust dependencies to current releases.
+
+* Thu Jun 18 2026 Caleb Jarrell <calebjarrell2006@gmail.com> - 0.2.1-1
 - Initial RPM packaging.

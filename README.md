@@ -32,21 +32,27 @@ sudo rpm -i task-scheduler-*.rpm
 **Prerequisites:** Rust (stable), `pkg-config`, `gtk4`, `libadwaita`, `dbus`, `polkit`
 
 <details>
-<summary>Install build dependencies</summary>
+<summary>Install build dependencies (optional — <code>install.sh</code> does this for you)</summary>
+
+`install.sh` detects your package manager and installs these itself, so you
+normally don't need to run anything here. Listed for reference, or if you'd
+rather install them yourself first.
 
 **Debian / Ubuntu / Mint**
 ```bash
-sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev libdbus-1-dev
+sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev polkitd
 ```
+> On releases older than Debian 13 / Ubuntu 24.04, `polkitd` is called `policykit-1`.
 
-**Arch / Manjaro / EndeavourOS**
+**Arch / Manjaro / EndeavourOS / CachyOS**
 ```bash
-sudo pacman -S gtk4 libadwaita dbus polkit
+sudo pacman -S --needed pkgconf gtk4 libadwaita dbus polkit systemd
 ```
+> Rust comes from `rust`, or from [rustup](https://rustup.rs) if you already use it — the installer detects either.
 
 **Fedora / RHEL**
 ```bash
-sudo dnf install gtk4-devel libadwaita-devel dbus-devel polkit
+sudo dnf install pkgconf-pkg-config gtk4-devel libadwaita-devel polkit
 ```
 </details>
 

@@ -4,8 +4,9 @@
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export CARGO_HOME = $(CURDIR)/debian/cargo-home
 
-# Project root inside the source tarball.
-SRC := desktop/task-scheduler
+# Project root inside the source tarball. The workspace lives at the top level
+# of the repo, so this is just the current directory.
+SRC := .
 PKGDIR := debian/task-scheduler
 
 %:
@@ -29,12 +30,10 @@ override_dh_auto_install:
 	  $(SRC)/packaging/task-scheduler-daemon.service \
 	  > $(PKGDIR)/usr/lib/systemd/system/task-scheduler-daemon.service
 	chmod 644 $(PKGDIR)/usr/lib/systemd/system/task-scheduler-daemon.service
-	install -Dm644 $(SRC)/packaging/task-scheduler.desktop \
-	  $(PKGDIR)/usr/share/applications/task-scheduler.desktop
+	install -Dm644 $(SRC)/packaging/org.linux.TaskScheduler.desktop \
+	  $(PKGDIR)/usr/share/applications/org.linux.TaskScheduler.desktop
 	install -Dm644 $(SRC)/packaging/task-scheduler.png \
 	  $(PKGDIR)/usr/share/icons/hicolor/512x512/apps/task-scheduler.png
-	install -Dm644 $(SRC)/packaging/task-scheduler.svg \
-	  $(PKGDIR)/usr/share/icons/hicolor/scalable/apps/task-scheduler.svg
 	install -d -m 0755 $(PKGDIR)/var/lib/task-scheduler/snapshots
 
 override_dh_installsystemd:

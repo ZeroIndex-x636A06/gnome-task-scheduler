@@ -14,9 +14,32 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="0.2.1"
+
+# Version comes from the workspace manifest — never hardcode it here, or the
+# packages silently drift out of sync with the binaries they contain.
+# Prefer `cargo metadata` (authoritative); fall back to parsing Cargo.toml so
+# packaging still works without a toolchain on PATH.
+read_version() {
+  local v=""
+  if command -v cargo &>/dev/null; then
+    v="$(cargo metadata --no-deps --format-version 1 --manifest-path "$ROOT_DIR/Cargo.toml" 2>/dev/null \
+         | sed -n 's/.*"name":"task-scheduler","version":"\([^"]*\)".*/\1/p' | head -1)"
+  fi
+  if [[ -z "$v" ]]; then
+    v="$(sed -n '/^\[workspace\.package\]/,/^\[/{s/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p}' \
+         "$ROOT_DIR/Cargo.toml" | head -1)"
+  fi
+  [[ -n "$v" ]] || { echo "ERROR: could not determine version from Cargo.toml" >&2; exit 1; }
+  printf '%s' "$v"
+}
+
+VERSION="$(read_version)"
 RELEASE="1"
 DIST_DIR="$ROOT_DIR/dist"
+# rpm validates the weekday against the date in %changelog, so generate it
+# rather than hardcoding a string that goes stale (and bogus) over time.
+RPM_DATE="$(LC_ALL=C date '+%a %b %d %Y')"
+echo "==> Packaging version ${VERSION}-${RELEASE}"
 
 # Detect architecture
 ARCH_RAW="$(uname -m)"
@@ -66,7 +89,7 @@ Package: task-scheduler
 Version: ${VERSION}-${RELEASE}
 Architecture: ${DEB_ARCH}
 Maintainer: Caleb Jarrell <calebjarrell2006@gmail.com>
-Depends: libgtk-4-1, libadwaita-1-0, dbus, policykit-1, systemd
+Depends: libgtk-4-1, libadwaita-1-0, dbus, polkitd | policykit-1, systemd
 Recommends: cron
 Section: admin
 Priority: optional
@@ -190,7 +213,7 @@ install -d -m 0755 %{buildroot}/var/lib/task-scheduler/snapshots
 
 %post
 systemctl daemon-reload || true
-systemctl reload dbus 2>/dev/null || systemctl restart dbus || true
+systemctl reload dbus 2>/dev/null || true
 systemctl enable --now task-scheduler-daemon.service || true
 update-desktop-database %{_datadir}/applications 2>/dev/null || true
 gtk-update-icon-cache -f %{_datadir}/icons/hicolor 2>/dev/null || true
@@ -220,8 +243,8 @@ fi
 %dir /var/lib/task-scheduler/snapshots
 
 %changelog
-* Thu Jun 19 2026 Caleb Jarrell <calebjarrell2006@gmail.com> - ${VERSION}-${RELEASE}
-- Initial RPM packaging.
+* ${RPM_DATE} Caleb Jarrell <calebjarrell2006@gmail.com> - ${VERSION}-${RELEASE}
+- Automated build from local source tree.
 SPEC
 
   rpmbuild -bb \

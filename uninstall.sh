@@ -68,7 +68,8 @@ fi
 
 echo "==> Reloading dbus + systemd"
 systemctl daemon-reload
-systemctl reload dbus 2>/dev/null || systemctl restart dbus || true
+# Reload only — restarting the system bus would drop every attached client.
+systemctl reload dbus 2>/dev/null || true
 
 echo
 echo "Done. To also remove cargo build artifacts:"

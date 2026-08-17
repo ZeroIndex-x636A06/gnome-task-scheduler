@@ -1,30 +1,34 @@
 # Maintainer: Caleb Jarrell <calebjarrell2006@gmail.com>
 pkgname=task-scheduler
-pkgver=0.2.0
+pkgver=0.2.2
 pkgrel=1
 pkgdesc="GTK4/libadwaita scheduler for system and user cron / systemd tasks"
 arch=('x86_64' 'aarch64')
-url="https://github.com/ZeroIndex-x636A06/gnome-task-manager"
+url="https://github.com/ZeroIndex-x636A06/gnome-task-scheduler"
 license=('MIT')
 depends=('gtk4' 'libadwaita' 'dbus' 'polkit' 'systemd')
-makedepends=('rust' 'cargo' 'pkgconf')
+# `cargo` is provided by `rust`; listing both makes pacman ask which provider
+# to use and breaks unattended makepkg runs.
+makedepends=('rust' 'pkgconf')
 optdepends=(
   'cronie: classic cron backend for user-scope tasks'
   'breeze-icon-theme: better icon match on KDE Plasma'
   'xfconf: XFCE theme detection for dark-mode sync'
 )
 install="${pkgname}.install"
+# The upstream tarball unpacks to <reponame>-<version>, which is not $pkgname.
+_srcdir="gnome-task-scheduler-${pkgver}"
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
 prepare() {
-  cd "${pkgname}-${pkgver}"
+  cd "${_srcdir}"
   export CARGO_HOME="${srcdir}/.cargo"
   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
 }
 
 build() {
-  cd "${pkgname}-${pkgver}"
+  cd "${_srcdir}"
   export CARGO_HOME="${srcdir}/.cargo"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
@@ -32,7 +36,7 @@ build() {
 }
 
 package() {
-  cd "${pkgname}-${pkgver}"
+  cd "${_srcdir}"
 
   install -Dm755 target/release/task-scheduler        "${pkgdir}/usr/bin/task-scheduler"
   install -Dm755 target/release/task-scheduler-daemon "${pkgdir}/usr/bin/task-scheduler-daemon"
@@ -48,8 +52,8 @@ package() {
     > "${pkgdir}/usr/lib/systemd/system/task-scheduler-daemon.service"
   chmod 644 "${pkgdir}/usr/lib/systemd/system/task-scheduler-daemon.service"
 
-  install -Dm644 packaging/task-scheduler.desktop \
-    "${pkgdir}/usr/share/applications/task-scheduler.desktop"
+  install -Dm644 packaging/org.linux.TaskScheduler.desktop \
+    "${pkgdir}/usr/share/applications/org.linux.TaskScheduler.desktop"
   install -Dm644 packaging/task-scheduler.png \
     "${pkgdir}/usr/share/icons/hicolor/512x512/apps/task-scheduler.png"
 

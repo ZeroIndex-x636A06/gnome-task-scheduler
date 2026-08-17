@@ -1,6 +1,6 @@
 post_install() {
   systemctl daemon-reload || true
-  systemctl reload dbus 2>/dev/null || systemctl restart dbus || true
+  systemctl reload dbus 2>/dev/null || true
   systemctl enable --now task-scheduler-daemon.service || true
 }
 

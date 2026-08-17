@@ -1,14 +1,18 @@
 # Maintainer: Caleb Jarrell <calebjarrell2006@gmail.com>
 pkgname=task-scheduler-git
 _pkgname=task-scheduler
-pkgver=0.2.0.r0.gHEAD
+# Placeholder only — pkgver() below rewrites this from git on every build, so
+# this package always tracks the newest commit without manual bumping.
+pkgver=0.0.0.r0.gHEAD
 pkgrel=1
 pkgdesc="GTK4/libadwaita scheduler for system and user cron / systemd tasks (VCS)"
 arch=('x86_64' 'aarch64')
-url="https://github.com/ZeroIndex-x636A06/gnome-task-manager"
+url="https://github.com/ZeroIndex-x636A06/gnome-task-scheduler"
 license=('MIT')
 depends=('gtk4' 'libadwaita' 'dbus' 'polkit' 'systemd')
-makedepends=('rust' 'cargo' 'pkgconf' 'git')
+# `cargo` is provided by `rust`; listing both makes pacman ask which provider
+# to use and breaks unattended makepkg runs.
+makedepends=('rust' 'pkgconf' 'git')
 optdepends=(
   'cronie: classic cron backend for user-scope tasks'
   'breeze-icon-theme: better icon match on KDE Plasma'
@@ -53,8 +57,8 @@ package() {
     > "${pkgdir}/usr/lib/systemd/system/task-scheduler-daemon.service"
   chmod 644 "${pkgdir}/usr/lib/systemd/system/task-scheduler-daemon.service"
 
-  install -Dm644 packaging/task-scheduler.desktop \
-    "${pkgdir}/usr/share/applications/task-scheduler.desktop"
+  install -Dm644 packaging/org.linux.TaskScheduler.desktop \
+    "${pkgdir}/usr/share/applications/org.linux.TaskScheduler.desktop"
   install -Dm644 packaging/task-scheduler.png \
     "${pkgdir}/usr/share/icons/hicolor/512x512/apps/task-scheduler.png"
 
