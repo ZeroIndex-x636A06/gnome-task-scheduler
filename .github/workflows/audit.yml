@@ -1,0 +1,187 @@
+# Weekly-audit harness: builds and tests the workspace, runs `sudo
+# ./install.sh` on a real systemd VM, drives the root daemon over the system
+# bus (including the open auto-review security issues as regression checks),
+# starts the GUI under Xvfb, builds the .deb/.rpm and uninstalls.
+name: audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/audit.yml']
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  DEST: org.linux.TaskScheduler
+  OBJ: /org/linux/TaskScheduler
+
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: sudo apt-get update -qq && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev desktop-file-utils libxml2-utils shellcheck
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - id: build
+        continue-on-error: true
+        run: cargo build --release --workspace --locked
+      - id: tests
+        continue-on-error: true
+        run: cargo test --workspace --locked
+      - id: clippy
+        continue-on-error: true
+        run: cargo clippy --workspace --all-targets --locked
+      - id: cargo_audit
+        continue-on-error: true
+        run: cargo audit
+      - id: shellcheck_errors
+        continue-on-error: true
+        run: shellcheck -S error install.sh uninstall.sh package.sh
+      - id: desktop_file
+        continue-on-error: true
+        run: desktop-file-validate packaging/org.linux.TaskScheduler.desktop
+      - id: xml_wellformed
+        continue-on-error: true
+        run: xmllint --noout packaging/org.linux.TaskScheduler.conf packaging/org.linux.TaskScheduler.policy
+      - id: secret_scan
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: summary
+        if: always()
+        env:
+          STEPS: ${{ toJSON(steps) }}
+        run: |
+          echo "$STEPS" | jq -r 'to_entries[] | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
+          ! echo "$STEPS" | jq -e 'to_entries[] | select(.value.outcome=="failure")' >/dev/null
+
+  install-and-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: task scheduler   # path with spaces on purpose
+      - id: install
+        continue-on-error: true
+        working-directory: task scheduler
+        run: sudo ./install.sh
+      - id: daemon_active
+        continue-on-error: true
+        run: systemctl is-active task-scheduler-daemon.service
+      - id: dbus_introspect
+        continue-on-error: true
+        run: busctl introspect --system "$DEST" "$OBJ" | tee /dev/stderr | grep -q CreateTask
+
+      # Documented feature: root creates a system task via the daemon.
+      - id: root_create_system_task
+        continue-on-error: true
+        run: |
+          sudo busctl call --system "$DEST" "$OBJ" "$DEST" CreateTask ssssss systemd-system ci-audit-task /bin/true OnCalendar daily persistent
+          sudo busctl call --system "$DEST" "$OBJ" "$DEST" ListTasks | grep -q ci-audit-task
+          grep -rl ci-audit-task /etc/systemd/system
+          systemctl list-timers --all --no-pager | grep -q ci-audit-task
+      - id: root_delete_system_task
+        continue-on-error: true
+        run: |
+          sudo busctl call --system "$DEST" "$OBJ" "$DEST" DeleteTask ss systemd-system ci-audit-task
+          ! grep -rqs ci-audit-task /etc/systemd/system
+
+      # Regression checks for open auto-review issues. Each step passes once
+      # the issue is fixed. Throwaway VM, so the exploit attempts are harmless.
+      - id: issue1_nonroot_cannot_create_root_task
+        continue-on-error: true
+        run: |
+          set +e
+          busctl call --system "$DEST" "$OBJ" "$DEST" CreateTask ssssss systemd-system ci-nonroot "/usr/bin/touch /ci-nonroot-pwned" OnCalendar daily persistent
+          rc=$?
+          sudo busctl call --system "$DEST" "$OBJ" "$DEST" DeleteTask ss systemd-system ci-nonroot 2>/dev/null
+          [ "$rc" -ne 0 ]
+      - id: issue2_uid_not_trusted   # non-root asks for a uid-0 device task
+        continue-on-error: true
+        run: |
+          set +e
+          busctl call --system "$DEST" "$OBJ" "$DEST" CreateUserDeviceTask sssu ci-uid0 /bin/true '{"action":"Add","subsystem":"usb"}' 0
+          rc=$?
+          sudo busctl call --system "$DEST" "$OBJ" "$DEST" DeleteUserDeviceTask su ci-uid0 0 2>/dev/null
+          [ "$rc" -ne 0 ]
+      - id: issue4_newline_injection_rejected
+        continue-on-error: true
+        run: |
+          set +e
+          sudo busctl call --system "$DEST" "$OBJ" "$DEST" CreateTask ssssss systemd-system ci-inject $'/bin/true\nExecStartPre=/usr/bin/touch /ci-injected' OnCalendar daily persistent
+          rc=$?
+          bad=$(sudo grep -rls '^ExecStartPre=/usr/bin/touch /ci-injected' /etc/systemd/system)
+          sudo busctl call --system "$DEST" "$OBJ" "$DEST" DeleteTask ss systemd-system ci-inject 2>/dev/null
+          echo "rc=$rc injected_into=$bad"
+          [ -z "$bad" ]
+      - id: issue7_dotdot_name_rejected
+        continue-on-error: true
+        run: |
+          set +e
+          sudo busctl call --system "$DEST" "$OBJ" "$DEST" CreateTask ssssss systemd-system .. /bin/true OnCalendar daily persistent
+          [ "$?" -ne 0 ]
+      - id: issue6_unit_sandboxed
+        continue-on-error: true
+        run: |
+          systemctl show task-scheduler-daemon.service -p NoNewPrivileges -p ProtectSystem -p ProtectHome
+          [ "$(systemctl show task-scheduler-daemon.service -p NoNewPrivileges --value)" = yes ]
+          [ "$(systemctl show task-scheduler-daemon.service -p ProtectSystem --value)" != no ]
+
+      - id: gui_starts_headless
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y xvfb >/dev/null
+          set +e
+          dbus-run-session -- xvfb-run -a timeout 10 task-scheduler 2> "$RUNNER_TEMP/gui.err"; rc=$?
+          cat "$RUNNER_TEMP/gui.err"
+          [ "$rc" -eq 124 ] && ! grep -qi panicked "$RUNNER_TEMP/gui.err"
+      - id: uninstall
+        continue-on-error: true
+        working-directory: task scheduler
+        run: |
+          sudo ./uninstall.sh --purge-tasks
+          test ! -e /usr/local/bin/task-scheduler-daemon
+          ! systemctl cat task-scheduler-daemon.service 2>/dev/null
+      - name: daemon journal
+        if: always()
+        run: sudo journalctl -u task-scheduler-daemon --no-pager | tail -100
+      - name: summary
+        if: always()
+        env:
+          STEPS: ${{ toJSON(steps) }}
+        run: |
+          echo "$STEPS" | jq -r 'to_entries[] | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
+          ! echo "$STEPS" | jq -e 'to_entries[] | select(.value.outcome=="failure")' >/dev/null
+
+  # README's "From a package (recommended)" path.
+  package-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev rpm
+      - id: package_sh
+        continue-on-error: true
+        run: ./package.sh && ls dist/*.deb dist/*.rpm | tee "$RUNNER_TEMP/pkgs"
+      - id: install_deb
+        continue-on-error: true
+        run: sudo apt-get install -y "$(grep '\.deb$' "$RUNNER_TEMP/pkgs" | head -1 | xargs realpath)"
+      - id: deb_daemon_active
+        continue-on-error: true
+        run: systemctl is-active task-scheduler-daemon.service
+      - id: remove_deb
+        continue-on-error: true
+        run: sudo apt-get purge -y task-scheduler && ! systemctl is-active task-scheduler-daemon.service
+      - name: summary
+        if: always()
+        env:
+          STEPS: ${{ toJSON(steps) }}
+        run: |
+          echo "$STEPS" | jq -r 'to_entries[] | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
+          ! echo "$STEPS" | jq -e 'to_entries[] | select(.value.outcome=="failure")' >/dev/null
