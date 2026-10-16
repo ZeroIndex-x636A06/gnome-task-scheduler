@@ -21,7 +21,7 @@ jobs:
   build-test-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - run: sudo apt-get update -qq && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev desktop-file-utils libxml2-utils shellcheck
@@ -59,13 +59,13 @@ jobs:
         env:
           STEPS: ${{ toJSON(steps) }}
         run: |
-          echo "$STEPS" | jq -r 'to_entries[] | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "$STEPS" | jq -r 'to_entries[] | select(.key|test("^[0-9a-f]{32}$")|not) | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
           ! echo "$STEPS" | jq -e 'to_entries[] | select(.value.outcome=="failure")' >/dev/null
 
   install-and-run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: task scheduler   # path with spaces on purpose
       - id: install
@@ -157,14 +157,14 @@ jobs:
         env:
           STEPS: ${{ toJSON(steps) }}
         run: |
-          echo "$STEPS" | jq -r 'to_entries[] | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "$STEPS" | jq -r 'to_entries[] | select(.key|test("^[0-9a-f]{32}$")|not) | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
           ! echo "$STEPS" | jq -e 'to_entries[] | select(.value.outcome=="failure")' >/dev/null
 
   # README's "From a package (recommended)" path.
   package-deb:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: sudo apt-get update -qq && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev rpm
       - id: package_sh
         continue-on-error: true
@@ -183,5 +183,5 @@ jobs:
         env:
           STEPS: ${{ toJSON(steps) }}
         run: |
-          echo "$STEPS" | jq -r 'to_entries[] | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "$STEPS" | jq -r 'to_entries[] | select(.key|test("^[0-9a-f]{32}$")|not) | "AUDIT \(.key): \(.value.outcome)"' | tee -a "$GITHUB_STEP_SUMMARY"
           ! echo "$STEPS" | jq -e 'to_entries[] | select(.value.outcome=="failure")' >/dev/null
